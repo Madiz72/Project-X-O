@@ -16,27 +16,30 @@ CYBER_PINK = (255, 60, 180)
 BG = (10, 10, 20)
 GRID_COLOR = (60, 220, 200)
 
-try:
-    SND_PLACE = pygame.mixer.Sound("place.wav")
-    SND_ERROR = pygame.mixer.Sound("error.wav")
-except:
-    SND_PLACE = None
-    SND_ERROR = None
-
-CARD_Y = 600
-CARD_W, CARD_H = 120, 120
-
-board = [["" for _ in range(3)] for _ in range(3)]
-CARD_TYPES = [
+# کارت‌های قابل انتخاب برای بازیکن X
+CARD_TYPES_X = [
     {"name": "X", "cost": 1},
+    {"name": "FLIP", "cost": 2},
+    {"name": "REMOVE", "cost": 2},
+    {"name": "SWAP", "cost": 3},
+]
+
+# کارت‌های قابل انتخاب برای بازیکن O
+CARD_TYPES_O = [
     {"name": "O", "cost": 1},
     {"name": "FLIP", "cost": 2},
     {"name": "REMOVE", "cost": 2},
     {"name": "SWAP", "cost": 3},
 ]
 
+# کارت رایگان
 FREE_X = {"name": "X", "cost": 0}
 FREE_O = {"name": "O", "cost": 0}
+
+CARD_Y = 600
+CARD_W, CARD_H = 120, 120
+
+board = [["" for _ in range(3)] for _ in range(3)]
 
 player_turn = "X"
 mana = 3
@@ -51,22 +54,28 @@ highlight_fade_in = True
 game_over = False
 winner_text = ""
 
-# For SWAP state: stores first selected cell for swap
 swap_first_cell = None
+
 
 def draw_text(text, x, y, color=(255, 255, 255), font=FONT):
     render = font.render(text, True, color)
     WIN.blit(render, (x, y))
 
+
 def give_cards():
     global hand
-    hand = [random.choice(CARD_TYPES) for _ in range(3)]
+
     if player_turn == "X":
-        hand.append(FREE_X)
+        base_cards = CARD_TYPES_X
     else:
-        hand.append(FREE_O)
+        base_cards = CARD_TYPES_O
+
+    hand = [random.choice(base_cards) for _ in range(3)]
+    hand.append(FREE_X if player_turn == "X" else FREE_O)
+
     for i in range(len(hand)):
         card_positions[i] = -CARD_H
+
 
 def slide_in_cards():
     for i in card_positions:
@@ -74,6 +83,7 @@ def slide_in_cards():
             card_positions[i] += 20
             if card_positions[i] > CARD_Y:
                 card_positions[i] = CARD_Y
+
 
 def draw_cards():
     for idx, card in enumerate(hand):
@@ -88,6 +98,7 @@ def draw_cards():
 
         draw_text(card["name"], x + 15, y + 15, CYBER_BLUE)
         draw_text(f"Cost: {card['cost']}", x + 15, y + 70, CYBER_PINK)
+
 
 def draw_board():
     global highlight_alpha, highlight_fade_in
@@ -123,12 +134,12 @@ def draw_board():
             if mark != "":
                 draw_text(mark, 90 + r * cell_size, 90 + c * cell_size, CYBER_PINK, BIG)
 
-    # If swap card active, highlight first selected cell
     if selected_card is not None and hand[selected_card]["name"] == "SWAP" and swap_first_cell:
         r, c = swap_first_cell
         x = 30 + r * cell_size
         y = 30 + c * cell_size
         pygame.draw.rect(WIN, CYBER_PINK, (x, y, cell_size, cell_size), 4)
+
 
 def check_win():
     lines = []
@@ -146,6 +157,7 @@ def check_win():
         if line == ["O", "O", "O"]:
             return "O"
     return None
+
 
 def play_card(card, pos):
     global highlight_cell, swap_first_cell
@@ -175,16 +187,13 @@ def play_card(card, pos):
         return True
 
     if name == "SWAP":
-        # If first cell not selected, select it only if occupied
         if not swap_first_cell:
             if board[r][c] == "":
                 return False
             swap_first_cell = (r, c)
-            return None  # Wait for second cell
+            return None
         else:
-            # Second cell selected - perform swap
             r1, c1 = swap_first_cell
-            # Swap contents
             board[r1][c1], board[r][c] = board[r][c], board[r1][c1]
             highlight_cell = (r, c)
             swap_first_cell = None
@@ -192,12 +201,13 @@ def play_card(card, pos):
 
     return False
 
+
 def ai_make_move():
     global player_turn, mana, hand, selected_card, highlight_cell, swap_first_cell
 
     pygame.time.delay(400)
 
-    # Simple AI: try to win by placing 'O'
+    # AI tries to win
     for r in range(3):
         for c in range(3):
             if board[r][c] == "":
@@ -210,7 +220,7 @@ def ai_make_move():
                     return
                 board[r][c] = ""
 
-    # Block player winning
+    # AI tries to block X
     for r in range(3):
         for c in range(3):
             if board[r][c] == "":
@@ -224,10 +234,10 @@ def ai_make_move():
                     return
                 board[r][c] = ""
 
-    # Else place random 'O'
-    empty_cells = [(r, c) for r in range(3) for c in range(3) if board[r][c] == ""]
-    if empty_cells:
-        r, c = random.choice(empty_cells)
+    # Else random move
+    empty = [(r, c) for r in range(3) for c in range(3) if board[r][c] == ""]
+    if empty:
+        r, c = random.choice(empty)
         board[r][c] = "O"
         highlight_cell = (r, c)
 
@@ -236,6 +246,7 @@ def ai_make_move():
     give_cards()
     selected_card = None
     swap_first_cell = None
+
 
 def can_play_any_card():
     for card in hand:
@@ -257,14 +268,15 @@ def can_play_any_card():
                         if board[r][c] != "":
                             return True
             elif name == "SWAP":
-                # If there's at least two occupied cells, SWAP can be played
                 occupied = [(r, c) for r in range(3) for c in range(3) if board[r][c] != ""]
                 if len(occupied) >= 2:
                     return True
     return False
 
+
 def reset_game():
-    global board, mana, player_turn, hand, selected_card, game_over, winner_text, highlight_cell, highlight_alpha, highlight_fade_in, swap_first_cell
+    global board, mana, player_turn, hand, selected_card, game_over, winner_text
+    global highlight_cell, highlight_alpha, highlight_fade_in, swap_first_cell
 
     board = [["" for _ in range(3)] for _ in range(3)]
     mana = 3
@@ -278,11 +290,11 @@ def reset_game():
     highlight_fade_in = True
     swap_first_cell = None
 
+
 give_cards()
-
 clock = pygame.time.Clock()
-
 running = True
+
 while running:
     clock.tick(60)
     WIN.fill(BG)
@@ -298,8 +310,8 @@ while running:
         overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 180))
         WIN.blit(overlay, (0, 0))
-        draw_text(winner_text, 120, 320, CYBER_PINK, BIG)
-        draw_text("Press R to Restart", 180, 380, CYBER_BLUE, FONT)
+        draw_text(winner_text, 150, 320, CYBER_PINK, BIG)
+        draw_text("Press R to Restart", 180, 380, CYBER_BLUE)
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -323,7 +335,6 @@ while running:
 
             if clicked_card_idx is not None:
                 selected_card = clicked_card_idx
-                # reset swap cell if switching card
                 swap_first_cell = None
                 continue
 
@@ -333,35 +344,16 @@ while running:
                 card = hand[selected_card]
 
                 if mana < card["cost"]:
-                    if SND_ERROR:
-                        try:
-                            SND_ERROR.play()
-                        except:
-                            pass
                     continue
 
                 res = play_card(card, (r, c))
 
                 if res is False:
-                    if SND_ERROR:
-                        try:
-                            SND_ERROR.play()
-                        except:
-                            pass
                     continue
                 elif res is None:
-                    # For SWAP first click, no mana cost yet, wait second click
                     continue
 
-                # Card was played
-                if SND_PLACE:
-                    try:
-                        SND_PLACE.play()
-                    except:
-                        pass
-
                 mana -= card["cost"]
-                # Remove card only if fully played (not SWAP first click)
                 hand.pop(selected_card)
                 selected_card = None
                 swap_first_cell = None
@@ -383,7 +375,6 @@ while running:
 
     if player_turn == "O" and not game_over:
         ai_make_move()
-
         winner = check_win()
         if winner:
             game_over = True

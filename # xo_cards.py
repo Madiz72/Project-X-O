@@ -16,6 +16,13 @@ CYBER_PINK = (255, 60, 180)
 BG = (10, 10, 20)
 GRID_COLOR = (60, 220, 200)
 
+try:
+    SND_PLACE = pygame.mixer.Sound("place.wav")
+    SND_ERROR = pygame.mixer.Sound("error.wav")
+except:
+    SND_PLACE = None
+    SND_ERROR = None
+
 CARD_Y = 600
 CARD_W, CARD_H = 120, 120
 
@@ -345,6 +352,13 @@ while running:
                 elif res is None:
                     # For SWAP first click, no mana cost yet, wait second click
                     continue
+
+                # Card was played
+                if SND_PLACE:
+                    try:
+                        SND_PLACE.play()
+                    except:
+                        pass
 
                 mana -= card["cost"]
                 # Remove card only if fully played (not SWAP first click)

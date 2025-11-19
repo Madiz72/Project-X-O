@@ -346,13 +346,6 @@ while running:
                     # For SWAP first click, no mana cost yet, wait second click
                     continue
 
-                # Card was played
-                if SND_PLACE:
-                    try:
-                        SND_PLACE.play()
-                    except:
-                        pass
-
                 mana -= card["cost"]
                 # Remove card only if fully played (not SWAP first click)
                 hand.pop(selected_card)
